@@ -1,0 +1,398 @@
+---
+title: "Used Cars Analysis"
+author:
+- "Cuicui Lu" 
+- "clu@seattleu.edu"
+email: "clu@seattleu.edu"
+output: slidy_presentation
+---
+
+```{r include = FALSE}
+# Set chunk options for the file
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+
+```
+
+```{r echo = FALSE}
+# Clear environment of variables and functions
+rm(list = ls(all = TRUE)) 
+
+# Clear environmet of packages
+if(is.null(sessionInfo()$otherPkgs) == FALSE)lapply(paste("package:", names(sessionInfo()$otherPkgs), sep=""), detach, character.only = TRUE, unload = TRUE)
+
+```
+
+```{r message = FALSE, echo = FALSE}
+library(tidyverse)
+library(scales)
+library(gridExtra)
+library(janitor)
+library(knitr)
+library(GGally)
+library(dplyr)
+library(colorspace)
+library(flexdashboard)
+library(formattable)
+library(kableExtra)
+```
+
+```{r echo = FALSE}
+df<-read.csv('FP_AutoData.csv')
+df<-df %>%
+  mutate(Age = 2019 - year,
+         Manufacturer = as.factor(case_when(manufacturer == 'ford' ~ 'US-Ford',
+                                   manufacturer == 'chevrolet' ~ 'US-Chevrolet',
+                                   manufacturer == 'dodge' ~ 'US-Dodge',
+                                   manufacturer == 'toyota' ~ 'JP-Toyota',
+                                   manufacturer == 'nissan' ~ 'JP-Nissan',
+                                   manufacturer == 'honda' ~ 'JP-Honda',
+                                   manufacturer == 'bmw' ~ 'DE-BMW',
+                                   manufacturer == 'mercedes-benz' ~ 'DE-Mercedes',
+                                   manufacturer == 'audi' ~ 'DE-Audi',
+                                   TRUE ~ 'Other')),
+         Country = as.factor(if_else(manufacturer %in% c('ford','chevrolet', 'dodge'), 'US',
+                             if_else(manufacturer %in% c('toyota','nissan','honda'), 'JP',
+                             if_else(manufacturer %in% c('bmw','mercedes-benz','audi'),'DE', 'Other')))),
+         my_type = as.factor(case_when(type == 'SUV' ~ 'SUV',
+                                   type == 'sedan' ~ 'Sedan',
+                                   TRUE ~ 'Other')))
+
+AO_filter <- filter(df, ((cylinders %in% "4 cylinders")&(!(Manufacturer %in% "Other"))&(my_type %in% c("Sedan","SUV"))))%>%
+  group_by(Manufacturer, my_type)%>%
+  summarise(Price_change_3 = (median(price[Age <= 1])-median(price[Age == 3]))/median(price[Age <= 1]),
+            Price_change_4 = (median(price[Age <= 1])-median(price[Age == 4]))/median(price[Age <= 1]),
+            Price_change_5 = (median(price[Age <= 1])-median(price[Age == 5]))/median(price[Age <= 1]),
+            Price_change_6 = (median(price[Age <= 1])-median(price[Age == 6]))/median(price[Age <= 1]),
+            Price_change_7 = (median(price[Age <= 1])-median(price[Age == 7]))/median(price[Age <= 1]),
+            Price_change_8 = (median(price[Age <= 1])-median(price[Age == 8]))/median(price[Age <= 1]),
+            Price_change_9 = (median(price[Age <= 1])-median(price[Age == 9]))/median(price[Age <= 1]),)
+
+Country <- c('DE','DE','DE','JP','JP','JP','US','US','US')
+Price_Change <- AO_filter$Price_change_3
+Age <- c(3,3,3,3,3,3,3,3,3)
+Age_3 <- data.frame(AO_filter$Manufacturer,Price_Change,AO_filter$my_type,Age,Country)
+Price_Change <- AO_filter$Price_change_4
+Age <- c(4,4,4,4,4,4,4,4,4)
+Age_4 <- data.frame(AO_filter$Manufacturer,Price_Change,AO_filter$my_type,Age,Country)
+Price_Change <- AO_filter$Price_change_5
+Age <- c(5,5,5,5,5,5,5,5,5)
+Age_5 <- data.frame(AO_filter$Manufacturer,Price_Change,AO_filter$my_type,Age,Country)
+Price_Change <- AO_filter$Price_change_6
+Age <- c(6,6,6,6,6,6,6,6,6)
+Age_6 <- data.frame(AO_filter$Manufacturer,Price_Change,AO_filter$my_type,Age,Country)
+Price_Change <- AO_filter$Price_change_7
+Age <- c(7,7,7,7,7,7,7,7,7)
+Age_7 <- data.frame(AO_filter$Manufacturer,Price_Change,AO_filter$my_type,Age,Country)
+Price_Change <- AO_filter$Price_change_8
+Age <- c(8,8,8,8,8,8,8,8,8)
+Age_8 <- data.frame(AO_filter$Manufacturer,Price_Change,AO_filter$my_type,Age,Country)
+Price_Change <- AO_filter$Price_change_9
+Age <- c(9,9,9,9,9,9,9,9,9)
+Age_9 <- data.frame(AO_filter$Manufacturer,Price_Change,AO_filter$my_type,Age,Country)
+
+df_price_change_Age <- rbind(Age_3,Age_4,Age_5,Age_6,Age_7,Age_8,Age_9)
+
+
+```
+
+    Introduction
+===============================================
+
+<div style="float: left; width: 50%;">
+
+
++ 25430 observations including 13 variables from craigslist US. 
+
++ Subset Data Explanation
+
+  - Price: $500 ~ $50000 
+  - Age: 0 ~ 9 years
+  - Cylinders: 4
+  - Odometer: 0 ~ 100000
+  - Fuel type: Gas
+  - Type: Sedan, SUV 
+
++ 9 manufacturers from three countries been considered in the analysis:
+
+  - DE: Audi, BMW, Mercedes-Benz (Taken as luxury cars)
+  - JP: Honda, Nissan, Toyota
+  - US: Chevrolet, Dodge, Ford
+
+
+</div>
+<div style="float: left; width: 50%;">
+
++ Findings
+
+  - DE cars’ prices are much higher than JP and US cars, however, they lose value fast. 
+
+  - SUV has a better performance on holding value than Sedan for most of cars.
+
+
+```{r message = FALSE, echo = FALSE}
+df_filter <- filter(df,(cylinders %in% "4 cylinders")&(!(Manufacturer %in% "Other")))%>%
+  group_by(Country)%>%
+  count() %>% 
+  ungroup() %>% 
+  mutate(per=`n`/sum(`n`)) %>% 
+  arrange(desc(Country))
+df_filter$label <- scales::percent(df_filter$per)
+FP_slide_0 <- ggplot(data=df_filter)+
+  geom_bar(aes(x="", y=per, fill=Country), stat="identity", width = 1)+
+  coord_polar("y", start=0)+
+  theme_void()+
+  geom_text(aes(x=1, y = cumsum(per) - per/2, label=label))+
+   scale_fill_brewer(palette = 'Paired')+
+  theme(plot.margin = margin(1.6,1.2,1.6,1.2, "cm"),
+        plot.title = element_text(hjust = 0.5, size= 14),text = element_text(size= 12))+
+  theme(legend.position = "bottom")+
+  labs(title = 'JP and US used cars are more common than DE cars')
+ggsave("FP_slide_0.png")
+  
+```
+
+![](FP_slide_0.png){style="width:600px;height:450px"}
+
+</div>
+
+Used cars frequency analysis
+=========================================
+
+<div style="float: left; width: 5%;">
+<br>     
+</div>
+<div style="float: left; width: 90%;">
+
+
++ DE cars are not very common in used cars market.
+
+  - BMW is more popular than Audi and Mercedes.
+  
++ All the three of JP manufacturers are very popular, Nissan is the most.
+
++ US Chevrolet and Ford have the top two highest market share.
+
+
+</div>
+
+<div style="float: left; width: 50%;">
+
+```{r  echo = FALSE}
+
+df_filter <- filter(df,(cylinders %in% "4 cylinders")&(!(Manufacturer %in% "Other")))%>%
+  group_by(Manufacturer,Age)%>%
+  summarise(count = n()) %>%
+  spread(Age,count)%>%
+  as.data.frame()
+
+tb <- formattable(df_filter)
+kable(tb, format.args = list(big.mark = ","),caption = 'Most of cars listed are from 3 to 6 years')%>%
+  kable_styling(font_size = 16, bootstrap_options = 'striped',
+                full_width = FALSE)%>%
+  column_spec(5:8,bold = TRUE)
+
+```
+
+</div>
+
+<div style="float: left; width: 50%;">
+
+
+```{r message = FALSE, echo = FALSE}
+
+df_filter <- filter(df,(cylinders %in% "4 cylinders")&(!(Manufacturer %in% "Other")))
+
+FP_slide_1 <- ggplot(df_filter) +
+ aes(x = as.factor(Age),fill = Country) +
+ geom_bar() +
+ labs(x = 'Age', y = " ", title = "JP and US cars are more common than DE cars") +
+ theme_classic() +
+ facet_wrap(vars(Manufacturer))+
+    scale_fill_brewer(palette = 'Paired')+
+  theme(axis.ticks.y = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.line = element_line(linetype = "blank"),
+    legend.position = "top",plot.title = element_text( size= 14),axis.text = element_text(size= 12),legend.text = element_text(size = 12), strip.text = element_text(size = 12),
+        strip.background = element_blank())
+ggsave(filename = "FP_slide_1.png")
+
+```
+![](FP_slide_1.png){style="width:580px;height:425px"}
+
+
+</div>
+
+
+Price change analysis
+=========================================
+
+<div style="float: left; width: 5%;">
+<br>     
+</div>
+<div style="float: left; width: 95%;">
+
+
++ Luxury cars’ prices are much higher than the other two overall especially for sedans.
+
+  - The price difference for SUV is getting smaller after 4 years.
+
++ JP cars and US cars have relatively similar prices.
+
+  - US car's price is the lowest in these three.
+
+
+</div>
+<div style="float: left; width: 5%;">
+<br>     
+</div>
+<div style="float: left; width: 45%;">
+
+
+```{r message = FALSE, echo = FALSE}
+AO_filter <- filter(df, (cylinders %in% "4 cylinders")&(!(Manufacturer %in% "Other"))&(my_type %in% c("Sedan"))&(Age %in% c('3','4','5','6','7','8','9'))) %>% # focusing on odometer analysis, use 4 cylinders sedan as example 
+  group_by(Age,Country,my_type)%>%
+  summarise(Med_price = median(price))
+    
+ 
+FP_slide_2 <- ggplot(AO_filter) +
+ aes(x = as.factor(Age), y = Med_price, fill = Country) +
+ geom_bar(stat = 'identity',position = position_dodge2(width = 0.9, preserve = "single"),width = 0.7) +
+ labs(x = " ", y = "Median of price", title = "DE Sedan has a much higher price") +
+ facet_wrap(~my_type, ncol = 1)+
+  theme_classic()+
+  scale_fill_brewer(palette = 'Paired')+
+  scale_y_continuous(labels = scales::dollar_format(scale = .001, suffix = "K"),
+                     limits = c(0,25000))+
+  scale_x_discrete(labels = c('3 Years','4 Years','5 Years','6 Years','7 Years','8 Years','9 Years'))+
+  theme(axis.ticks.y = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.line = element_line(linetype = "blank"),
+        legend.position = "bottom",plot.title = element_text( size= 16),axis.text = element_text(size= 12), strip.text = element_text(size = 12),axis.title=element_text(size=14),
+        strip.background = element_blank())
+
+ggsave(filename = "FP_slide_2.png")
+```
+![](FP_slide_2.png){style="width:550px;height:440px"}
+</div>
+
+<div style="float: right; width: 45%;">
+
+```{r message = FALSE, echo = FALSE}
+AO_filter <- filter(df, (cylinders %in% "4 cylinders")&(!(Manufacturer %in% "Other"))&(my_type %in% c("SUV"))&(Age %in% c('3','4','5','6','7','8','9'))) %>% # focusing on odometer analysis, use 4 cylinders sedan as example 
+  group_by(Age,Country,my_type)%>%
+  summarise(Med_price = median(price))
+    
+ 
+FP_slide_3 <- ggplot(AO_filter) +
+ aes(x = as.factor(Age), y = Med_price, fill = Country) +
+ geom_bar(stat = 'identity',position = position_dodge2(width = 0.9, preserve = "single"),width = 0.7) +
+ labs(x = " ", y = "Median of price", title = "The price difference is getting smaller after 4 years") +
+ facet_wrap(~my_type, ncol = 1)+
+  theme_classic()+
+  scale_fill_brewer(palette = 'Paired')+
+  scale_y_continuous(labels = scales::dollar_format(scale = .001, suffix = "K"))+
+  scale_x_discrete(labels = c('3 Years','4 Years','5 Years','6 Years','7 Years','8 Years','9 Years'))+
+  theme(axis.ticks.y = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.line = element_line(linetype = "blank"),
+        legend.position = "bottom",plot.title = element_text( size= 16),axis.text = element_text(size= 12), strip.text = element_text(size = 12),axis.title=element_text(size=14),
+        strip.background = element_blank())
+ggsave(filename = "FP_slide_3.png")
+```
+![](FP_slide_3.png){style="width:550px;height:440px"}
+</div>
+
+Price reduction ratio analysis
+=========================================
+
+<div style="float: left; width: 5%;">
+<br>
+</div>
+
+<div style="float: left; width: 95%;">
+
++ Japan and US sedan has similar performance on holding value.
+
++ SUV has a better performance on holding value than Sedan.
+
+  - US SUV holds value better than Japan before 6 years.
+
+  - DE SUV has similar reduction ratio with the other two after 4 years. 
+
+</div>
+<div style="float: left; width: 5%;">
+<br>     
+</div>
+
+<div style="float: left; width: 45%;">
+
+```{r message = FALSE, echo = FALSE}
+FP_slide_4 <- ggplot(filter(df_price_change_Age,AO_filter.my_type == 'Sedan'), aes( x = as.factor(Age), y = Price_Change, fill = Country))+
+  geom_bar(stat = 'identity',position = position_dodge(width=0.8),width = 0.7)+
+  facet_wrap(~AO_filter.my_type[AO_filter.my_type == 'Sedan'])+
+  scale_y_continuous(labels=scales::percent)+
+ labs(x = "", y = "Price reduction ratio", title = "DE Sedan has much higher reduction ratio")+
+  theme_classic()+
+    scale_fill_brewer(palette = 'Paired')+
+  scale_x_discrete(labels = c('3 Years','4 Years','5 Years','6 Years','7 Years','8 Years','9 Years'))+
+  theme(axis.ticks.y = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.line = element_line(linetype = "blank"),
+        legend.position = "bottom",plot.title = element_text( size= 16),axis.text = element_text(size= 12), strip.text = element_text(size = 12),axis.title=element_text(size=14),
+        strip.background = element_blank())
+ggsave(filename = "FP_slide_4.png")
+```
+![](FP_slide_4.png){style="width:550px;height:440px"}
+</div>
+
+<div style="float: right; width: 45%;">
+
+```{r message = FALSE, echo = FALSE}
+FP_slide_5 <- ggplot(filter(df_price_change_Age,AO_filter.my_type == 'SUV'), aes( x = as.factor(Age), y = Price_Change, fill = Country))+
+  geom_bar(stat = 'identity',position = position_dodge(width=0.8),width = 0.7)+
+  facet_wrap(~AO_filter.my_type[AO_filter.my_type == 'SUV'])+
+  scale_y_continuous(labels=scales::percent)+
+ labs(x = "", y = "Price reduction ratio", title = "DE SUV has similar reduction ratio after 4 years")+
+  theme_classic()+
+    scale_fill_brewer(palette = 'Paired')+
+  scale_x_discrete(labels = c('3 Years','4 Years','5 Years','6 Years','7 Years','8 Years','9 Years'))+
+  theme(axis.ticks.y = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.line = element_line(linetype = "blank"),
+    legend.position = "bottom",plot.title = element_text( size= 16),axis.text = element_text(size= 12), strip.text = element_text(size = 12),axis.title=element_text(size=14),strip.background = element_blank())
+ggsave(filename = "FP_slide_5.png")
+
+```
+![](FP_slide_5.png){style="width:550px;height:440px"}
+</div>
+
+Summary    
+=========================================
+
+<div style="float: left; width: 5%;">
+<br>
+</div>
+<div style="float: left; width: 95%;">
+
+**Conclusion**
+
++ Luxury cars’ prices are much higher, however, they lose value fast.
+
+  - The price difference for SUV is getting smaller after 4 years.
+
++ US cars have lower price than JP cars and similar performance on holding value.
+
++ SUV has a better performance on holding value than Sedan.
+
+  - US SUV holds value better than Japan before 6 years.
+  
+**Suggestion**
+
++ For sellers with luxury cars, I recommend not to sell them when they are pretty new since they lose a lot of value in a short time.
+
++ For buyers interested in luxury cars, I recommend to buy SUV at around 5 years. For other buyers, I recommend to buy US cars because the price is relatively low and it also holds value very well.
+
+
+***Feel free to contact me at clu@seattleu.edu for any questions.***
+
+</div>

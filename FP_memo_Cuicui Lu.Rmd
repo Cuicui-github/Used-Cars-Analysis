@@ -1,0 +1,59 @@
+---
+output: html_document
+---
+
+#### **To: Any potential audience**  
+  
+#### **From: Cuicui Lu** 
+
+#### **Email: clu@seattleu.edu**
+  
+#### **RE: Used Cars Analysis**  
+
+***
+
+### Introduction
+
+People always wonder how to evaluate a used car, so they can buy or sell a used car at an ideal price. This analysis will give some ideas about the questions people may have. I selected a sample data with 25430 observations including 13 variables from craigslist US. I filtered the sample from the original data based on the following conditions: Price from 500 to 50000, year from 2010 to 2019 (I used age in the analysis instead), cylinders including 4, 6 and 8, odometer from 0 to 100000, fuel type is gas. After basic analysis of data, I focused on the analysis of price change from 3 to 9 years using Sedan and SUV with 4 cylinders as example. I used median price instead of mean in the analysis since the price was skewed. 9 popular manufacturers from three countries been considered in the following findings which are DE: Audi, BMW, Mercedes-Benz (taken as luxury cars); JP: Honda, Nissan, Toyota; US: Chevrolet, Dodge, Ford.
+
+### Price change over years analysis
+
+<center>
+![](FP_price_year.png){style="width:560px;height:390px"}
+</center>
+
+This graph is showing the median price of cars at different age. So we can see luxury cars' prices are higher than others, but the price difference is getting smaller over years.
+
+### Price reduction ratio over years analysis
+
+<center>
+![](FP_ratio_year.png){style="width:560px;height:390px"}
+</center>
+
+This graph is showing the median price reduction ratio at different age. We can see SUV has a better performance on holding value than Sedan. JP and US sedans have similar performance.
+
+
+### Summary
+
+#### Conclusion
+
+- Luxury cars' prices are much higher but lose value very fast.
+
+- SUV has a better performance on holding value than Sedan.
+
+- Japan and US has similar performance for Sedans. 
+
+#### Recommendation
+
+- For sellers with luxury cars, I recommend not to sell when it is pretty new since it loses a lot of value in a short time. The longer it's been used, the more it's worth the cost, without considering maintenance fee, etc.
+
+- For buyers interested in luxury cars, I recommend to buy SUV at around 5 years since the price won't change much after 5 years. For other buyers, I recommend to buy US cars because the price is relatively low and it also holds value very well.
+
+
+The above is what I have concluded for now, please fell free to contact me for any questions.
+
+Sincerely,
+
+Cuicui Lu
+
+Data Source: https://www.kaggle.com/austinreese/craigslist-carstrucks-data

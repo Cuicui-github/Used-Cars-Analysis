@@ -1,0 +1,874 @@
+---
+title: "Used Cars Analysis"
+author: "Cuicui Lu - clu@seattleu.edu"
+date: "12/14/2019"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    number_sections: true
+---
+
+# Background
+
+People always wonder how to evaluate a used car, so they can buy or sell a used car at an ideal price. This analysis will give some ideas about the questions people may have. The original data which was collected from craigslist US in July 2019, has much more information, I selected part of the data based on the problem-set which I think most of people will be interested in. However, we can always use the original data which is from https://www.kaggle.com/austinreese/craigslist-carstrucks-data to do further analysis as needs.
+
+# Clear the Environment, Load Packages and Data
+
+## Clear the Environment
+
+Clear the environment
+
+```{r}
+# Clear environment of variables and functions
+rm(list = ls(all = TRUE)) 
+
+# Clear environmet of packages
+if(is.null(sessionInfo()$otherPkgs) == FALSE)lapply(paste("package:", names(sessionInfo()$otherPkgs), sep=""), detach, character.only = TRUE, unload = TRUE)
+
+```
+
+## Load Packages
+
+Load packages
+
+```{r}
+library(tidyverse)
+library(scales)
+library(gridExtra)
+library(janitor)
+library(knitr)
+library(GGally)
+library(dplyr)
+library(colorspace)
+library(inspectdf)
+library(DataExplorer)
+
+```
+
+## Load data into df
+
+Load data into df
+
+```{r}
+df<-read.csv('FP_AutoData.csv')
+```
+
+#  Base EDA Step 1: Univariate non-graphical EDA
+
+## Check the data type and change the type and variables as needed
+
+Check the data type
+
+```{r}
+str(df)
+```
+
+
+
+## Summarize the data
+
+Summarize the data
+
+```{r}
+summary(df)
+```
+
+Total observations are 25430 with 13 variables in this dataset. The data is only about the US used cars information. I filtered the sample from the original data based on the following conditions: Price from 500 to 50000, year from 2010 to 2019 (we will use age to do analysis instead), cylinders c(4,6,8), odometer from 0 to 100000, fuel type is gas(column deleted in the data since there is only one value), some of manufacturers been selected. From city, we want to see whether the prices will be impacted by cities when other variables are same or similar. From all other variables, we want to see how the variables impact the price. We can also see if some famous brands always have absolute advantages when the year or odometer changes.
+
+
+Show manufacturers frequency
+
+```{r}
+table(df$manufacturer)
+```
+
+We want to 21 manufacturers have been selected into this data, we won't analyze each of them, we can choose more popular ones to do the analysis.
+
+Choose manufacturers, add more variables for further analysis
+
+```{r}
+df<-df %>%
+  mutate(Age = 2019 - year,
+         Manufacturer = as.factor(case_when(manufacturer == 'ford' ~ 'US-Ford',
+                                   manufacturer == 'chevrolet' ~ 'US-Chevrolet',
+                                   manufacturer == 'dodge' ~ 'US-Dodge',
+                                   manufacturer == 'toyota' ~ 'JP-Toyota',
+                                   manufacturer == 'nissan' ~ 'JP-Nissan',
+                                   manufacturer == 'honda' ~ 'JP-Honda',
+                                   manufacturer == 'bmw' ~ 'DE-BMW',
+                                   manufacturer == 'mercedes-benz' ~ 'DE-Mercedes',
+                                   manufacturer == 'audi' ~ 'DE-Audi',
+                                   TRUE ~ 'Other')),
+         Country = as.factor(if_else(manufacturer %in% c('ford','chevrolet', 'dodge'), 'US',
+                             if_else(manufacturer %in% c('toyota','nissan','honda'), 'JP',
+                             if_else(manufacturer %in% c('bmw','mercedes-benz','audi'),'DE', 'Other'))))) # 9 manufacturers in 3 countries
+                                  
+```
+
+#  Base EDA Step 2: Univariate graphical EDA
+
+## Quantitative variables
+
+Histograms of quantitative variables
+
+```{r}
+df %>%
+  inspect_num()%>%
+  show_plot()
+
+```
+
+We can see from the graph, most of the cars have very high odometers in this sample data, most of price is from 6000 to 18000, most of the year is from 2013 to 2017. So we know people would like to sell their cars when they used it for 3 to 6 years, and they hope they can sell for 6000 to 18000 dollars.
+
+## Categorical variables
+
+Categorical variables frequency
+
+```{r}
+df %>%
+  inspect_cat()%>%
+  show_plot()
+
+```
+
+```{r}
+df %>%
+ plot_bar(maxcat = 6)
+
+```
+
+These two graphs are showing the categorical variables count information. We can tell that people would like to describe their cars in excellent conditions. Most of cars are 4 cylinders, four-wheel drive, full-size, automatic transmission with clean title. Ford and Chevrolet are more popular in used cars. We can also see more information about the popular colors and types in the graphs.
+
+
+# Base EDA Step 3: Multivariate non-graphical
+
+
+## Quantitative variables
+
+Correlation table
+
+
+```{r}
+df %>%
+  plot_correlation(maxcat = 3L)
+
+```
+
+1.The odometer has negtive correlation with price, Age/year has positive correlation with price.
+
+2.Cylinders and drive have strong correlation with price. 
+
+## Categorical variables
+
+Table to show the relationship between condition and title status
+
+```{r}
+df %>% 
+  tabyl(title_status, condition) %>% 
+  adorn_totals(where = c("row", "col"))
+
+```
+
+We can see clean title has different conditions, most of them are in at least good condition. Excellent condition also has bad title status like salvage. So we need to analyze these two variables separately. However, we can also tell there is too little data for most of title status. We may get some unreliable solutions just based on this data when we analyze title status. So we won't spend much time on title status analysis because most of cars' titles are clean.
+
+Table to show the frequency between drive and cylinders.
+
+```{r}
+df %>% 
+  tabyl(drive, cylinders ) %>% 
+  adorn_totals(where = c("row", "col"))
+
+```
+
+We can see 4wd has more average amount for different cylinders, fwd has more 4 and 6 cylinders, rwd has more 6 and 8 cylinders. If we analyze how cylinders impact the price, we won't add drive variable at the same time because these two variables can speak for each other.
+
+Table to show the frequency between drive and type
+
+```{r}
+df %>% 
+  tabyl(drive, type ) %>% 
+  adorn_totals(where = c("row", "col"))
+
+```
+
+4wd: SUV and truck are more common;
+fwd: sedan are more common;
+rwd: coupe, sedan, truck and van are more common, but less data than 4wd and fwd.
+
+Tables to show the charactors of different manufacturers
+
+```{r}
+df %>% 
+  tabyl(Manufacturer, cylinders ) %>% 
+  adorn_totals(where = c("row", "col"))
+
+```
+
+```{r}
+df %>% 
+  tabyl(Manufacturer, drive ) %>% 
+  adorn_totals(where = c("row", "col"))
+
+```
+
+
+
+```{r}
+df %>% 
+  tabyl(Manufacturer, size ) %>% 
+  adorn_totals(where = c("row", "col"))
+
+```
+```{r}
+df %>% 
+  tabyl(Manufacturer, type ) %>% 
+  adorn_totals(where = c("row", "col"))
+
+```
+
+From these several tables, we can conclude:
+
+1. 4 and 6 cylinders are common for all the manufacturers. 8 cylinders is rare for Audi, BMW and Honda. We will use 4 and 6 cylinders to do analysis if we want to compare features of all the manufacturers.
+
+2. Honda, Nissan and Toyota have more Front-wheel drive cars, others have more Four-wheel drive cars.
+
+3. Most of sedans are fwd, most of pickups, SUVs and trucks are 4wd.
+
+4. Ford and Chevrolet have more trucks than other manufacturers.
+
+5. Most of manufacturers have higher frequency in sedan and SUV types. We can use these two types to do analysis if we want to compare features of all the manufacturers.
+
+Select car type for further analysis
+
+```{r}
+df <- df %>%
+  mutate( my_type = as.factor(case_when(type == 'SUV' ~ 'SUV',
+                                   type == 'sedan' ~ 'Sedan',
+                                   TRUE ~ 'Other')))
+```
+
+
+# Base EDA Step 4: Multi-variate graphical analysis
+
+## Quantitative variables impact on price
+
+Boxplot of odometer and Age/year by price
+
+```{r}
+df %>%
+  plot_boxplot(by = 'price')
+```
+
+From this graph, we can see that when the price is over than 30000, the median Age/year is equal or very close which means when the cars are pretty new, the price will be impacted by the odometer more than by the year.
+
+Odometer impact on price analysis by type (Using 4 cylinders as example because cylinders will impact on price)
+
+```{r}
+AO_filter <- filter(df, (cylinders %in% "4 cylinders")&(!(Manufacturer %in% "Other"))&(!(my_type %in% "Other")))  # focusing on odometer analysis, use 4 cylinders as example 
+
+ggplot(AO_filter) +
+ aes(x = odometer, y = price, color = my_type) +
+ geom_point(size = 1L) +
+  geom_smooth(method = 'lm', se = FALSE,)+
+ scale_color_hue() +
+ theme_minimal() +
+ facet_wrap(vars(Manufacturer))
+
+```
+
+We used 4 cylinders cars as example to do the analysis here. We can see the price of luxury cars is very sensitive with odometer compared with others. 
+
+Odometer impact on price analysis by cylinders (Using sedan as example because type will impact on price)
+
+```{r}
+AO_filter <- filter(df, (cylinders %in% c("4 cylinders",'6 cylinders'))&(!(Manufacturer %in% "Other"))&((my_type %in% "Sedan")))  # focusing on odometer analysis, use 4 cylinders as example 
+
+ggplot(AO_filter) +
+ aes(x = odometer, y = price, colour = cylinders) +
+ geom_point(size = 1L) +
+  geom_smooth(method = 'lm', se = FALSE)+
+ scale_color_hue() +
+ theme_minimal() +
+ facet_wrap(vars(Manufacturer))
+
+```
+
+We used sedan as example to do the analysis here. We can see the price of luxury cars is also very sensitive with odometer by differenc cylinders.Bisides price change for 6 cylinders honda is very flat which means it holds value very well.
+
+Age impact on price analysis by type (Using 4 cylinders as example because cylinders will impact on price)
+
+```{r}
+AO_filter <- filter(df, (cylinders %in% "4 cylinders")&(!(Manufacturer %in% "Other"))&(!(my_type %in% "Other")))  # focusing on odometer analysis, use 4 cylinders as example 
+
+ggplot(AO_filter) +
+ aes(x = Age, y = price, colour = my_type) +
+ geom_point(size = 1L) +
+  geom_smooth(method = 'lm', se = FALSE)+
+ scale_color_hue() +
+ theme_minimal() +
+ facet_wrap(vars(Manufacturer))
+
+```
+
+Same as the analysis for odometer, we used 4 cylinders as example. We can see the price of luxury cars is very sensitive with age. Other cars price have a relatively slower change over years.
+
+
+Age impact on price analysis by cylinders (Using sedan as example because type will impact on price)
+
+```{r}
+AO_filter <- filter(df, (cylinders %in% c("4 cylinders","6 cylinders")&(!(Manufacturer %in% "Other"))&((my_type %in% "Sedan"))))  # focusing on odometer analysis, use 4 cylinders as example 
+
+ggplot(AO_filter) +
+ aes(x = Age, y = price, colour = cylinders) +
+ geom_point(size = 1L) +
+  geom_smooth(method = 'lm', se = FALSE)+
+ scale_color_hue() +
+ theme_minimal() +
+ facet_wrap(vars(Manufacturer))
+
+```
+
+Using sedan as example, we can tell luxury cars price drop down very fast. Honda or Chevrolet have very close price for 4 and 6 cylinders cars all the time.
+
+## Categorical variables impact on price
+
+Price by city
+
+```{r}
+city_filter <- filter(df, city %in% c('Vermont, IL','Oshkosh, WI','Albany, NY','Green bay, WI','Madison, WI','Oklahoma City, OK')) 
+  ggplot(city_filter) +
+ aes(x = city, y = price) +
+ geom_boxplot(fill = "grey") +
+ geom_hline(yintercept = median(city_filter$price), linetype = 2)+
+ theme_minimal()
+```
+
+I select top 6 cities ranking by frequency to compare the med_price, there are some differences among cities. Considering too many other factors and too many cities included in this data, I won't do further analysis based on cities here.
+
+Price by color
+
+```{r}
+color_filter <- filter(df, paint_color %in% c('white','black','grey','silver','red','blue')) 
+  ggplot(color_filter) +
+ aes(x = reorder(paint_color,price), y = price) +
+ geom_boxplot(fill = "grey") +
+ geom_hline(yintercept = median(color_filter$price), linetype = 2)+
+ theme_minimal()
+ 
+```
+
+We can say the color didn't impact on the price significantly, only white has higher price. I won't analyze the color in the following analysis.
+
+Price by cylinders
+
+
+```{r}
+ggplot(df) +
+ aes(x = cylinders, y = price) +
+ geom_boxplot(fill = "grey") +
+ theme_minimal()
+```
+
+The more cylinders, the higher price which is reasonable. However, I will only 4 cylinders as example to do additional analysis.
+
+Price by title_status
+
+```{r}
+ggplot(df) +
+ aes(x = reorder(title_status,price), y = price) +
+ geom_boxplot(fill = "grey") +
+ theme_minimal()
+```
+
+1.Parts don't have enough data to show a reliable result. 
+
+2.Salvage and rebuilt have similar median price which means the value won't be higher just because the owner spends a lot of money on it. For seller, I would recommend to buy another new or used car if broken car doesn't have insurance covered. For buyer, I would suggest to be careful to buy a rebuilt car. You may spend much less than if you buy a new car, but it might need major repairs.
+
+3.Clean and lien title have higher price, the price of lien title is the highest, possible reason is people might have bought more expensive cars if they used lien.
+
+4.I won't analyze the title status in the following analysis because most of the cars have a clean title, all other types of title don't have enough data. 
+
+Price by and condition
+
+
+```{r}
+ggplot(df) +
+ aes(x = reorder(condition,price), y = price) +
+ geom_boxplot(fill = "grey") +
+ theme_minimal()
+
+```
+
+As we can expect, the better condition, the higher price. Most of cars in this data have at least good condition, we won't analyze fair and salvage because of limited data (see from Base EDA Step 2: Univariate graphical EDA/Categorical variables).
+
+Price by type
+
+```{r}
+ggplot(df) +
+ aes(x = reorder(type,price), y = price) +
+ geom_boxplot(fill = "grey") +
+ theme_minimal()
+```
+
+Price will be impacted by a car type. I want to focus on two more common types to do the following analysis which are sedan(lower price), SUV(higher price) because most of manufacturers have higher frequency in these two types (see the table in Base EDA Step 3: Multivariate non-graphical/Categorical variables).
+
+
+
+Price by manufacturers
+
+```{r}
+type_filter <- filter(df,(my_type == 'Sedan' | my_type == 'SUV') & (!(Manufacturer == 'Other')))
+ggplot(type_filter) +
+ aes(x = Manufacturer, y = price, fill = my_type) +
+ geom_boxplot() +
+ geom_hline(yintercept = mean(type_filter$price[type_filter$my_type == 'Sedan']))+
+ geom_hline(yintercept = mean(type_filter$price[type_filter$my_type == 'SUV']), linetype = 2)+
+ theme_minimal()+
+  theme(legend.position = 'top')+
+  labs(fill='')
+```
+
+
+1. For Sedan, Audi, BMW and Mercides have higher price because they are relatively luxury cars as we know.
+
+2. For SUV, Audi, Mercedes and Toyota have higher price, as we know Toyota has several very popular SUVs like RAV4, Highlander.
+
+
+Price by drive, transmission and size
+
+```{r}
+df %>%
+  ggplot(aes(x = reorder(size,price), y = price, fill = transmission))+
+  geom_boxplot()+
+  geom_hline(yintercept = median(df$price), linetype = 2)+
+  facet_wrap(~drive, ncol = 1)
+```
+
+1.The transmission did't impact on the price consistently, besides, most of the cars are automatic, so I will focus on other variables on price analysis.
+
+2.Front-wheel drive has lower price than the other two drive types, possible reason is most of fwd are sedans which are cheaper than others. As long as we use car type to analyze, we don't need to use drive type because they can speak for each other.
+
+3.Sub-compact doesn't have relatively enough data. We just focus on the other three. The bigger size, the higher price, however, the price is not significantly impacted by size.
+
+
+# Additional EDA
+
+Based on the basic analysis above. We decide to do a further detailed analysis for price change by odometer or year. We used Sedan and SUV from three countries with 4 cylinders as example to show how these two variables impact on price. Before we do that, we need to look at the market share to see if we have enough data for the price analysis.
+
+## Cars of 3 countries market share analysis
+
+DE, JP, US market ratio
+
+```{r message = FALSE, echo = FALSE}
+df_filter <- filter(df,(cylinders %in% "4 cylinders")&(!(Manufacturer %in% "Other")))%>%
+  group_by(Country)%>%
+  count() %>% 
+  ungroup() %>% 
+  mutate(per=`n`/sum(`n`)) %>% 
+  arrange(desc(Country))
+df_filter$label <- scales::percent(df_filter$per)
+ggplot(data=df_filter)+
+  geom_bar(aes(x="", y=per, fill=Country), stat="identity", width = 1)+
+  coord_polar("y", start=0)+
+  theme_void()+
+  geom_text(aes(x=1, y = cumsum(per) - per/2, label=label))+
+   scale_fill_brewer(palette = 'Paired')+
+  theme(plot.margin = margin(1.6,1.2,1.6,1.2, "cm"),
+        plot.title = element_text(hjust = 0.5, size= 14),text = element_text(size= 12))+
+  theme(legend.position = "bottom")+
+  labs(title = 'JP and US used cars are more common than DE cars')
+  
+```
+JP and US are much more common than DE since DE cars are expensive. I am taking DE into the analysis because I want to analyze how the price of luxury cars change by year or odometer.
+
+Table to show the count of manufacurers by age
+
+```{r}
+df_filter <- filter(df,(cylinders %in% "4 cylinders")&(!(Manufacturer %in% "Other")))%>%
+  group_by(Manufacturer,Age)%>%
+  summarise(count = n()) %>%
+  spread(Age,count)%>%
+  as.data.frame()
+
+df_filter
+ 
+```
+
+We want to make sure we have enough data to do the analysis, we can tell from the table that most of cars listed are between 3 and 6 years. We will rely on these four years more than other years.
+
+Show the count in graph
+
+```{r}
+df_filter <- filter(df,(cylinders %in% "4 cylinders")&(!(Manufacturer %in% "Other")))
+
+ggplot(df_filter) +
+ aes(x = as.factor(Age),fill = Country) +
+ geom_bar() +
+ labs(x = '', y = " ", title = "Manufacturer frequency by age", subtitle = " ") +
+ theme_minimal() +
+ facet_wrap(vars(Manufacturer))+
+    scale_fill_brewer(palette = 'Paired')+
+  theme(legend.position = "bottom")
+
+```
+
+1.Luxury cars have less data than other types, most of the cars are more than 2 years old.
+
+2.Most of cars listed are from 3 to 6 years.
+
+3.Top 5 manufacturers are all 3 of JP and US-Chevrolet and US-Ford.
+
+
+## Odometer impact on price
+
+First, let's see how odometer changes over years.
+
+Odometer change over years
+
+```{r}
+AO_filter <- filter(df, ((cylinders %in% "4 cylinders")&(!(Manufacturer %in% "Other"))&(my_type %in% c("Sedan","SUV"))))%>%
+  group_by(Age,my_type)%>%
+  summarise(Med_Odometer = median(odometer))
+ggplot(AO_filter) +
+ aes(x = Age, y = Med_Odometer, color = my_type) +
+ geom_line(size=1) +
+ theme_minimal()+
+  theme(legend.position = 'top')+
+    scale_color_brewer(palette = 'Dark2')+
+  scale_x_continuous(breaks = c(0,1,2,3,4,5,6,7,8,9))+
+  scale_y_continuous(breaks = c(40000,80000))+
+  theme(panel.grid.minor = element_blank())+
+ labs(color = '')+guides(color = guide_legend(override.aes = list( size=5)))
+```
+
+Before 6 years, odometer and age have a very strong correlation, after 6 years, the odometer barely change. Possible reason is people don't drive an old car very often for safety purpose. We can move on to analyze how the odometer and year impact on price, if the price don't change much after 6 years which means the price is more sensitive with odometer than with age. Otherwise, the price is more sensitive with age more than odometer if the price still drops down after 6 years.
+
+Change numeric odometer variable to factor and see the price change by odometer.(We don't use line graph because odometer range is too wide which makes the line overlapped, then it's hard to show the changing pattern)
+
+```{r}
+df<-df %>%
+  mutate(Odometer = as.factor(case_when(odometer < 15000 ~ '10K',
+                    odometer >= 15000 & odometer<25000 ~ '20k',
+                    odometer >= 25000 & odometer<35000 ~ '30K',
+                    odometer >= 35000 & odometer<45000 ~ '40K',
+                    odometer >= 45000 & odometer<55000 ~ '50K',
+                    odometer >= 55000 & odometer<65000 ~ '60K',
+                    odometer >= 65000 & odometer<75000 ~ '70K',
+                    odometer >= 75000 & odometer<85000 ~ '80K',
+                    odometer >= 85000 & odometer<95000 ~ '90K',
+                    odometer >= 95000 & odometer<150000 ~ '100K')))
+AO_filter <- filter(df, ((cylinders %in% "4 cylinders")&(!(Manufacturer %in% "Other"))&(my_type %in% c("Sedan","SUV"))))%>%
+  group_by(Odometer,Country,my_type)%>%
+  summarise(Med_price = median(price))
+    
+ 
+ggplot(AO_filter) +
+ aes(x = reorder(Odometer,-Med_price), y = Med_price, fill = Country) +
+ geom_bar(stat = 'identity',position = position_dodge2(width = 0.9, preserve = "single"),width = 0.7) +
+ labs(x = "Odometer", y = " ", title = "JP and US cars have similar price over all", subtitle = "Luxury SUVs: The more odometer, the less price difference.") +
+ facet_wrap(~my_type, ncol = 1)+
+  theme_minimal()+
+  scale_fill_brewer(palette = 'Paired')+
+  scale_y_continuous(labels = scales::dollar_format(scale = .001, suffix = "K"))
+```
+
+1. DE cars have a larger change on price than JP or US Cars especially at the lower odometer. So we don't recommend to sell luxury cars when they have lower odometer. The longer it's been used, the more it's worth the cost.
+
+2. DE SUV price is getting closer to the other two after 70k odometer reading.
+
+
+## Age impact on price
+
+
+Price change by year and country
+
+```{r}
+
+AO_filter <- filter(df, (cylinders %in% "4 cylinders")&(!(Manufacturer %in% "Other"))&(my_type %in% c("Sedan","SUV"))&(Age %in% c('3','4','5','6','7','8','9'))) %>% # focusing on odometer analysis, use 4 cylinders sedan as example 
+  group_by(Age,Country,my_type)%>%
+  summarise(Med_price = median(price))
+    
+ 
+ggplot(AO_filter) +
+ aes(x = as.factor(Age), y = Med_price, fill = Country) +
+ geom_bar(stat = 'identity',position = position_dodge2(width = 0.9, preserve = "single"),width = 0.7) +
+ labs(x = " ", y = "Median of price", title = "The price of US cars is the lowest", subtitle = "Luxury cars: Higher price; Difference is getting smaller over years") +
+ facet_wrap(~my_type, ncol = 1)+
+  theme_classic()+
+  scale_fill_brewer(palette = 'Paired')+
+  scale_y_continuous(labels = scales::dollar_format(scale = .001, suffix = "K"),breaks = c(0,10000,20000))+
+  scale_x_discrete(labels = c('3 Years','4 Years','5 Years','6 Years','7 Years','8 Years','9 Years'))+
+  theme(axis.ticks.y = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.line = element_line(linetype = "blank"),
+        legend.position = "bottom",plot.title = element_text( size= 14),axis.text = element_text(size= 10),panel.grid.minor = element_blank(),
+        strip.background = element_blank())
+ggsave(filename = "FP_price_year.png")
+
+```
+
+This graphing is showing the median price of cars at different age.
+
+1. Luxury cars’ prices are much higher than others overall, the other tow are similar.
+
+2. Price difference is getting smaller over years.
+
+3. After 6 years, the price has a relatively slower change which means the price is more sensitive with odometer than year since odometer doesn't change much after 6 years (see odometer change by age).
+
+
+Price change by year and manufacturer
+
+```{r}
+
+AO_filter <- filter(df, (cylinders %in% "4 cylinders")&(!(Manufacturer %in% "Other"))&(my_type %in% c("Sedan","SUV"))&(Age %in% c('3','4','5','6','7','8','9'))) %>% # focusing on odometer analysis, use 4 cylinders sedan as example 
+  group_by(Age,Manufacturer,my_type)%>%
+  summarise(Med_price = median(price))
+    
+ 
+ggplot(AO_filter) +
+ aes(x = as.factor(Age), y = Med_price, fill = Manufacturer) +
+ geom_bar(stat = 'identity',position = position_dodge2(width = 0.9, preserve = "single"),width = 0.7) +
+ labs(x = " ", y = " ", title = "Price drop down over years", subtitle = "Luxury cars price drow down very fast") +
+ facet_wrap(~my_type, ncol = 1)+
+  theme_minimal()+
+  scale_fill_brewer(palette = 'Paired')+
+  scale_y_continuous(labels=scales::dollar)
+
+```
+
+We can tell the price difference between these 9 manufacturers at each year. The price difference is getting smaller after 6 years. For JP cars, we can tell Nissan price is the lowest.
+
+Create a dataframe for price reduction ratio from 3 to 9 years(data is limited before 3 years)
+
+```{r}
+AO_filter <- filter(df, ((cylinders %in% "4 cylinders")&(!(Manufacturer %in% "Other"))&(my_type %in% c("Sedan","SUV"))))%>%
+  group_by(Manufacturer, my_type)%>%
+  summarise(Price_change_3 = (median(price[Age <= 1])-median(price[Age == 3]))/median(price[Age <= 1]),
+            Price_change_4 = (median(price[Age <= 1])-median(price[Age == 4]))/median(price[Age <= 1]),
+            Price_change_5 = (median(price[Age <= 1])-median(price[Age == 5]))/median(price[Age <= 1]),
+            Price_change_6 = (median(price[Age <= 1])-median(price[Age == 6]))/median(price[Age <= 1]),
+            Price_change_7 = (median(price[Age <= 1])-median(price[Age == 7]))/median(price[Age <= 1]),
+            Price_change_8 = (median(price[Age <= 1])-median(price[Age == 8]))/median(price[Age <= 1]),
+            Price_change_9 = (median(price[Age <= 1])-median(price[Age == 9]))/median(price[Age <= 1]))
+
+Country <- c('DE','DE','DE','JP','JP','JP','US','US','US')
+
+Price_Change <- AO_filter$Price_change_3
+Age <- c(3,3,3,3,3,3,3,3,3)
+Age_3 <- data.frame(AO_filter$Manufacturer,Price_Change,AO_filter$my_type,Age,Country)
+Price_Change <- AO_filter$Price_change_4
+Age <- c(4,4,4,4,4,4,4,4,4)
+Age_4 <- data.frame(AO_filter$Manufacturer,Price_Change,AO_filter$my_type,Age,Country)
+Price_Change <- AO_filter$Price_change_5
+Age <- c(5,5,5,5,5,5,5,5,5)
+Age_5 <- data.frame(AO_filter$Manufacturer,Price_Change,AO_filter$my_type,Age,Country)
+Price_Change <- AO_filter$Price_change_6
+Age <- c(6,6,6,6,6,6,6,6,6)
+Age_6 <- data.frame(AO_filter$Manufacturer,Price_Change,AO_filter$my_type,Age,Country)
+Price_Change <- AO_filter$Price_change_7
+Age <- c(7,7,7,7,7,7,7,7,7)
+Age_7 <- data.frame(AO_filter$Manufacturer,Price_Change,AO_filter$my_type,Age,Country)
+Price_Change <- AO_filter$Price_change_8
+Age <- c(8,8,8,8,8,8,8,8,8)
+Age_8 <- data.frame(AO_filter$Manufacturer,Price_Change,AO_filter$my_type,Age,Country)
+Price_Change <- AO_filter$Price_change_9
+Age <- c(9,9,9,9,9,9,9,9,9)
+Age_9 <- data.frame(AO_filter$Manufacturer,Price_Change,AO_filter$my_type,Age,Country)
+
+df_price_change_Age <- rbind(Age_3,Age_4,Age_5,Age_6,Age_7,Age_8,Age_9)
+
+```
+
+Price changing rate by year and country
+
+```{r}
+
+ggplot(df_price_change_Age, aes( x = as.factor(Age), y = Price_Change, fill = Country))+
+  geom_bar(stat = 'identity',position = position_dodge(width=0.8),width = 0.7)+
+  facet_wrap(~AO_filter.my_type,ncol = 1)+
+  scale_y_continuous(labels=scales::percent,breaks = c(0,0.4,0.8))+
+ labs(x = "", y = "Price reduction ratio", title = "Sedan has larger reduction ratio than SUV overall", subtitle = "Luxury cars: Much higher reduction ratio than others except SUV after 5 years")+
+  theme_classic()+
+    scale_fill_brewer(palette = 'Paired')+
+  scale_x_discrete(labels = c('3 Years','4 Years','5 Years','6 Years','7 Years','8 Years','9 Years'))+
+  theme(axis.ticks.y = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.line = element_line(linetype = "blank"),
+        legend.position = "bottom",plot.title = element_text( size= 14),axis.text = element_text(size= 10),panel.grid.minor = element_blank(),
+        strip.background = element_blank())
+ggsave(filename = "FP_ratio_year.png")
+
+```
+
+This graphing is showing the median price reduction ratio at different age.
+
+1. SUV has a better performance on holding value than Sedan, especially for luxury cars. 
+
+2. After 6 years, the price is reducing slowing than before.
+
+3. To be clear, even the ratio is same, it doesn't mean the price is same since the original price is not same.
+
+Price changing rate by year and manufacturer
+
+```{r}
+
+ggplot(df_price_change_Age, aes( x = as.factor(Age), y = Price_Change, fill = AO_filter.Manufacturer))+
+  geom_bar(stat = 'identity',position = position_dodge(width=0.8),width = 0.7)+
+  facet_wrap(~AO_filter.my_type,ncol = 1)+
+  scale_y_continuous(labels=scales::percent)+
+  theme_minimal()+
+    scale_fill_brewer(palette = 'Paired')
+
+```
+
+Same logic as Country, the difference is we can focus on a specific manufacturer instead of country. We can see that after 6 years, the ratio is barely changing any more for some of cars. 
+
+Examples selected to take a closer look
+
+```{r}
+Man_filter <- filter(df_price_change_Age,AO_filter.Manufacturer %in% c('DE-Audi','JP-Nissan','US-Ford'))
+
+ggplot(Man_filter, aes( x = as.factor(Age), y = Price_Change, fill = AO_filter.Manufacturer))+
+  geom_bar(stat = 'identity',position = position_dodge(width=0.8),width = 0.7)+
+  facet_wrap(~AO_filter.my_type,ncol = 1)+
+  scale_y_continuous(labels=scales::percent)+
+ labs(x = "", y = "Price reduction ratio", title = "Sedans of these three have similar reduction ratio", subtitle = "Audi SUV has higher reduction ratio",fill = '')+
+  theme_minimal()+
+    scale_fill_brewer(palette = 'Paired')+
+  scale_x_discrete(labels = c('3 Years','4 Years','5 Years','6 Years','7 Years','8 Years','9 Years'))+
+  theme(legend.position = "bottom",panel.grid.minor = element_blank())
+
+```
+
+1. Audi has a different performance from what we analyzed for country which is SUV is better at holding value. This graph is showing Audi sedan is better at holding value than SUV. After 6 years, they are basically same.
+
+2. Nissan and Ford is showing the same solution as for country which is SUV is better at holding value and Ford price change is slower than Nissan.
+
+
+# Statistical EDA
+
+We will look at some simple models for some of manufacturers based the impact on price by age and odometer holding other variables constant. Use SUV of 4 cylinders, full-size, automatic transmission, 4wd with clean title and excellent condition as examples. 
+Below is only showing when Pr(>|t|) < 0.05 to make sure the significance level is not too high, and Adjusted R-squared > 0.7 to make sure the model fits well.
+
+## Models for SUV
+
+DE-Audi SUV
+
+```{r}
+AS_filter <- filter(df, (cylinders %in% "4 cylinders")&((Manufacturer %in% "DE-Audi"))&(my_type %in% c("SUV"))&(condition %in% "excellent")&(title_status %in% "clean")&(transmission %in% "automatic")&(drive %in% "4wd")&(size %in% "full-size"))
+model_audi_SUV <- lm(price ~ odometer + Age, data = AS_filter)
+summary(model_audi_SUV)
+
+```
+
+Residual analysis
+
+```{r}
+standardized.residual = rstandard(model_audi_SUV)
+predicted.price <- predict(model_audi_SUV)
+plot(predicted.price,standardized.residual)
+```
+
+
+JP-Nissan SUV
+
+```{r}
+AS_filter <- filter(df, (cylinders %in% "4 cylinders")&((Manufacturer %in% "JP-Nissan"))&(my_type %in% c("SUV"))&(condition %in% "excellent")&(title_status %in% "clean")&(transmission %in% "automatic")&(drive %in% "4wd")&(size %in% "full-size"))
+model_nissan_SUV <- lm(price ~ odometer + Age, data = AS_filter)
+summary(model_nissan_SUV )
+
+```
+
+
+Residual analysis
+
+```{r}
+standardized.residual = rstandard(model_nissan_SUV)
+predicted.price <- predict(model_nissan_SUV)
+plot(predicted.price,standardized.residual)
+```
+
+US-Ford SUV
+
+```{r}
+AS_filter <- filter(df, (cylinders %in% "4 cylinders")&((Manufacturer %in% "US-Ford"))&(my_type %in% c("SUV"))&(condition %in% "excellent")&(title_status %in% "clean")&(transmission %in% "automatic")&(drive %in% "4wd")&(size %in% "full-size"))
+model_ford_SUV <- lm(price ~ odometer + Age, data = AS_filter)
+summary(model_ford_SUV)
+
+```
+
+
+Residual analysis
+
+```{r}
+standardized.residual = rstandard(model_ford_SUV)
+predicted.price <- predict(model_ford_SUV)
+plot(predicted.price,standardized.residual)
+```
+
+## Model Summary
+
+1. Odometer sensitivity ranking high to low: US-Ford SUV, DE-Audi SUV, JP-Nissan SUV 
+
+2. Age sensitivity ranking high to low: DE-Audi SUV, JP-Nissan SUV, US-Ford SUV (Audi has a very high age coefficient(absolute value))
+
+
+# Analysis Summary
+
+Based the analysis above, we can conclude:
+
+1. People would like to sell their cars when they used them for 3 to 6 years, and they hope they can sell for 6000 to 18000 dollars.
+
+2. Ford and Chevrolet are much more popular in used cars.
+
+3. For JP cars, Nissan price is the lowest.
+
+4. Most of sedans are fwd, most of pickups, SUVs and trucks are 4wd.
+
+5. There are some differences for price in different cities.
+
+6. Front-wheel drive has lower price than the other two drive types because they are more likely sedans.
+
+7. Luxury cars’ prices are much higher than others, but the price drops down fast and price difference is getting smaller over time.
+
+8. After 6 years, the price has a relatively slower change which means the price is more sensitive with odometer after 6 years because odometer doesn't change much after 6 years.
+
+9. Overall, SUV has a better performance on holding value than Sedan. (Exception: Audi sedan is better at holding value than SUV.)
+
+10. The price sensitivity is different for different cars, some are more sensitive with age, others are more with odometer, we need to do more detailed analysis for a specific car type.
+
+We can always do more analysis based on our interest. Please find the original data from https://www.kaggle.com/austinreese/craigslist-carstrucks-data for your reference and feel free to contact me at clu@seattleu.edu.
+
+
+
+  
+                           
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
