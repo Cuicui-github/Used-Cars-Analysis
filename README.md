@@ -8,9 +8,9 @@ People always wonder how to evaluate a used car, so they can buy or sell a used 
 
    [Technical Appendix html](https://github.com/Cuicui-github/Used-Cars-Analysis/blob/master/FP_TA_Cuicui-Lu.html)
     - EDA steps
-3. [Momo R code](https://github.com/Cuicui-github/Used-Cars-Analysis/blob/master/FP_memo_Cuicui%20Lu.Rmd)
+3. [Memo R code](https://github.com/Cuicui-github/Used-Cars-Analysis/blob/master/FP_memo_Cuicui%20Lu.Rmd)
 
-   [Momo R html](https://github.com/Cuicui-github/Used-Cars-Analysis/blob/master/FP_memo_Cuicui-Lu.html)
+   [Memo R html](https://github.com/Cuicui-github/Used-Cars-Analysis/blob/master/FP_memo_Cuicui-Lu.html)
     - Two pages memo to show the background and summary of the analysis
 4. [Presentation video](https://github.com/Cuicui-github/Used-Cars-Analysis/blob/master/Used%20Cars%20Analysis.mp4)
 
